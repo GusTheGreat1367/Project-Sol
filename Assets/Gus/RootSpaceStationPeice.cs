@@ -1,6 +1,6 @@
 using UnityEngine;
 
-
+/*
 public class RootSpaceStationPeice : MonoBehaviour
 {
     public int X;
@@ -30,3 +30,4 @@ public class RootSpaceStationPeice : MonoBehaviour
     }
 
 }
+*/

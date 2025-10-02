@@ -1,5 +1,5 @@
 using UnityEngine;
-
+/*
 public class OtherSpaceStationPeices : MonoBehaviour
 {
     class Pieces//each peice will be a struct in this class
@@ -30,3 +30,4 @@ public class OtherSpaceStationPeices : MonoBehaviour
     }
     
 }
+*/

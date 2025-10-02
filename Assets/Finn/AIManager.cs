@@ -53,8 +53,9 @@ public class AIManager : MonoBehaviour
             {
                 if(AI.path.Count != 0)
                 {
-                    Vector3 direction = new Vector3(AI.targetPos.x, AI.targetPos.y, 0) - AI.obj.transform.position;
-                    float angle = Vector2.SignedAngle(Vector2.up, direction);
+                    Vector2 moveDir = (AI.path[0] - AIPos).normalized;
+                    AI.obj.transform.position += (Vector3)(moveDir * AI.velocity * Time.deltaTime);
+                    float angle = Vector2.SignedAngle(Vector2.up, moveDir);
                     AI.obj.transform.rotation = Quaternion.Euler(0, 0, angle);
                     if (Vector2.Distance(AIPos, AI.path[0]) < 1)
                     {
@@ -78,7 +79,7 @@ public class AIManager : MonoBehaviour
                 }
    
             }
-            AI.obj.transform.Translate(AI.obj.transform.up * AI.velocity * Time.deltaTime);
+
             AI.velocity -= .05f;
         }
     }
