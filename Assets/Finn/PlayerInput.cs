@@ -127,6 +127,15 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Movement"",
+                    ""type"": ""Value"",
+                    ""id"": ""1de50a33-6912-4d37-baa9-b30fcaa68378"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -173,6 +182,61 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""action"": ""CameraForward"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""2D Vector"",
+                    ""id"": ""a2b88b92-05a6-49ec-91b2-b130a4e5de77"",
+                    ""path"": ""2DVector"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Movement"",
+                    ""isComposite"": true,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": ""up"",
+                    ""id"": ""5942daa3-98dd-4fe3-b168-c86764d8099d"",
+                    ""path"": ""<Keyboard>/w"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Movement"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""down"",
+                    ""id"": ""8a89be46-1f31-4ca1-8bbf-ee773fb79262"",
+                    ""path"": ""<Keyboard>/s"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Movement"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""left"",
+                    ""id"": ""7f41672a-0c72-41a7-a99e-3633df7759cc"",
+                    ""path"": ""<Keyboard>/a"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Movement"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
+                },
+                {
+                    ""name"": ""right"",
+                    ""id"": ""923fb0d0-93c7-4602-b1e0-567d85198b29"",
+                    ""path"": ""<Keyboard>/d"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Movement"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": true
                 }
             ]
         }
@@ -185,6 +249,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         m_Main_CameraRight = m_Main.FindAction("CameraRight", throwIfNotFound: true);
         m_Main_CameraBack = m_Main.FindAction("CameraBack", throwIfNotFound: true);
         m_Main_CameraForward = m_Main.FindAction("CameraForward", throwIfNotFound: true);
+        m_Main_Movement = m_Main.FindAction("Movement", throwIfNotFound: true);
     }
 
     ~@PlayerInput()
@@ -269,6 +334,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Main_CameraRight;
     private readonly InputAction m_Main_CameraBack;
     private readonly InputAction m_Main_CameraForward;
+    private readonly InputAction m_Main_Movement;
     /// <summary>
     /// Provides access to input actions defined in input action map "Main".
     /// </summary>
@@ -296,6 +362,10 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Main/CameraForward".
         /// </summary>
         public InputAction @CameraForward => m_Wrapper.m_Main_CameraForward;
+        /// <summary>
+        /// Provides access to the underlying input action "Main/Movement".
+        /// </summary>
+        public InputAction @Movement => m_Wrapper.m_Main_Movement;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -334,6 +404,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @CameraForward.started += instance.OnCameraForward;
             @CameraForward.performed += instance.OnCameraForward;
             @CameraForward.canceled += instance.OnCameraForward;
+            @Movement.started += instance.OnMovement;
+            @Movement.performed += instance.OnMovement;
+            @Movement.canceled += instance.OnMovement;
         }
 
         /// <summary>
@@ -357,6 +430,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @CameraForward.started -= instance.OnCameraForward;
             @CameraForward.performed -= instance.OnCameraForward;
             @CameraForward.canceled -= instance.OnCameraForward;
+            @Movement.started -= instance.OnMovement;
+            @Movement.performed -= instance.OnMovement;
+            @Movement.canceled -= instance.OnMovement;
         }
 
         /// <summary>
@@ -425,5 +501,12 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnCameraForward(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Movement" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnMovement(InputAction.CallbackContext context);
     }
 }
