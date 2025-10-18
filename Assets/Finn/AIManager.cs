@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
 
@@ -25,6 +26,7 @@ public class AIManager : MonoBehaviour
         {
             PathFinderAI newAI = new PathFinderAI();
             newAI.obj = Instantiate(AIPrefab, Vector2.zero, Quaternion.identity);
+            newAI.obj.name = "AI " + i;
             AIs.Add(newAI);
         }
     }
@@ -53,7 +55,18 @@ public class AIManager : MonoBehaviour
             {
                 if(AI.path.Count != 0)
                 {
-                    Debug.DrawRay(AIPos, -(AIPos - AI.targetPos).normalized, Color.red);
+                   
+                    LayerMask mask = LayerMask.GetMask("AI");
+                    //Entirely for debugging purposes, if script becomes a multithreaded script, this won't work
+                    AI.obj.GetComponent<Collider2D>().enabled = false;
+                    RaycastHit2D hit = Physics2D.Raycast(AI.obj.transform.position, (AI.targetPos - AIPos).normalized, Mathf.Infinity, mask);
+                    if (hit.collider != null)
+                    {
+                        Debug.DrawLine(AI.obj.transform.position, hit.point, Color.green);
+                        Debug.Log(AI.obj.name + " hit " + hit.collider.name + " at pos " + hit.point);
+                    }
+                    AI.obj.GetComponent<Collider2D>().enabled = true;
+
                     Vector2 moveDir = (AI.path[0] - AIPos).normalized;
                     AI.obj.transform.position += (Vector3)(moveDir * AI.velocity * Time.deltaTime);
                     float angle = Vector2.SignedAngle(Vector2.up, moveDir);
@@ -78,7 +91,6 @@ public class AIManager : MonoBehaviour
                 {
                     AI.velocity += .1f;
                 }
-   
             }
 
             AI.velocity -= .05f;
@@ -87,17 +99,92 @@ public class AIManager : MonoBehaviour
 
     public void pathUpdate(PathFinderAI AI)
     {
+        AI.path = new List<Vector2>();
+        //Disableing and renabling the collider won't work if AI is multithreaded, this is a temporary solution
+        AI.obj.GetComponent<Collider2D>().enabled = false;
+        bool finishedPathing = false;
+        
         Vector2 AIPos = new Vector2(AI.obj.transform.position.x, AI.obj.transform.position.y);
         LayerMask mask = LayerMask.GetMask("AI");
+
+        //First pathing point is based off of the object
         RaycastHit2D hit = Physics2D.Raycast(AI.obj.transform.position, (AI.targetPos-AIPos).normalized, Mathf.Infinity, mask);
 
         if (hit.collider != null)
         {
+            AI.path.Add(hit.point -= (AI.targetPos - AIPos).normalized * (AI.obj.GetComponent<SpriteRenderer>().sprite.bounds.size.y*transform.lossyScale.y));
+            RaycastHit2D leftHit = Physics2D.Raycast(AI.path[0], (AI.targetPos - AIPos).normalized + new Vector2(-1, 0).normalized, Mathf.Infinity, mask);
+            RaycastHit2D rightHit = Physics2D.Raycast(AI.path[0], (AI.targetPos - AIPos).normalized + new Vector2(1, 0).normalized, Mathf.Infinity, mask);
+            if (leftHit.collider != null)
+            {
+                if(rightHit.collider != null)
+                {
+                    AI.path.Add(AI.path[0] + new Vector2(0, -1).normalized * 5);
+                }
+                else
+                {
+                    AI.path.Add(AI.path[0] + new Vector2(1, 0).normalized);
+                }
+            }
+            else
+            {
+                AI.path.Add(AIPos + new Vector2(-1, 0).normalized);
+            }
+
             Debug.DrawLine(AI.obj.transform.position, hit.point, Color.green);
             Debug.Log(AI.obj.name + " hit " + hit.collider.name);
         }
-        AI.path.Add(AI.targetPos);
+        else
+        {
+            finishedPathing = true;
+            AI.path.Add(AI.targetPos);
+        }
+        while (!finishedPathing)
+        {
+            int AIPathLength = AI.path.Count - 1;
+            hit = new RaycastHit2D();
+            hit = Physics2D.Raycast(AI.path[AIPathLength], (AI.targetPos - AI.path[AIPathLength]).normalized, Mathf.Infinity, mask);
+
+            if (hit.collider != null)
+            {
+                AI.path.Add(hit.point - (AI.targetPos - AI.path[AIPathLength]).normalized * (AI.obj.GetComponent<SpriteRenderer>().sprite.bounds.size.y * transform.lossyScale.y));
+                RaycastHit2D leftHit = Physics2D.Raycast(AI.path[AIPathLength], (AI.targetPos - AI.path[AIPathLength]).normalized + new Vector2(-1, 0).normalized, Mathf.Infinity, mask);
+                RaycastHit2D rightHit = Physics2D.Raycast(AI.path[AIPathLength], (AI.targetPos - AI.path[AIPathLength]).normalized + new Vector2(1, 0).normalized, Mathf.Infinity, mask);
+                if (leftHit.collider != null)
+                {
+                    if (rightHit.collider != null)
+                    {
+                        AI.path.Add(AI.path[AIPathLength] + new Vector2(0, -1).normalized * 5);
+                    }
+                    else
+                    {
+                        AI.path.Add(AI.path[AIPathLength] + new Vector2(1, 0).normalized);
+                    }
+                }
+                else
+                {
+                    AI.path.Add(AIPos + new Vector2(-1, 0).normalized);
+                }
+
+                Debug.DrawLine(AI.obj.transform.position, hit.point, Color.green);
+                Debug.Log(AI.obj.name + " hit " + hit.collider.name);
+            }
+            else
+            {
+                finishedPathing = true;
+            }
+        }
 
         Debug.Log("Path updated");
+        AI.obj.GetComponent<Collider2D>().enabled = true;
+    }
+
+    public Vector2 GetVector2Dir(float dirCW)
+    {
+        float radians = dirCW * Mathf.Deg2Rad;
+        float xComponent = Mathf.Cos(radians);
+        float yComponent = Mathf.Sin(radians);
+        Vector2 directionV2 = new Vector2(xComponent, yComponent);
+        return directionV2.normalized;
     }
 }
