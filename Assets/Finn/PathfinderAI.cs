@@ -16,6 +16,7 @@ public class PathfinderAI : MonoBehaviour
 {
     public Vector2 target;
 
+    public float speed;
 
     public int searchAreaWidth;
     public int searchAreaHeight;
@@ -35,6 +36,7 @@ public class PathfinderAI : MonoBehaviour
         {
             Debug.DrawLine(path[i - 1], path[i], Color.green);
         }
+
     }
 
     List<Vector2> PathFind(Vector2 target, int searchAreaWidth, int searchAreaHeight)
@@ -103,21 +105,41 @@ public class PathfinderAI : MonoBehaviour
                     if (new Vector2(x, y) != currentNode.position)
                     {
                         Node neigboringNode = totalNodes[gridX, gridY];
-
-                        float newStartCostScore = currentNode.startCost + Vector2.Distance(currentNode.position, neigboringNode.position);
-                        neigboringNode.targetDistance = Vector2.Distance(neigboringNode.position, target);
-                        if (newStartCostScore < neigboringNode.startCost)
+                        bool intersectingObj = false;
+                        for(int i = 0; i < totalObjs.Length; i++)
                         {
-                            neigboringNode.parent = currentNode;
-
-                            neigboringNode.startCost = newStartCostScore;
-                            neigboringNode.totalCost = neigboringNode.startCost + neigboringNode.targetDistance;
-                            if (!OpenNodes.Contains(neigboringNode))
+                            SpriteRenderer spriteRenderer = (SpriteRenderer)totalObjs[i];
+                            if (spriteRenderer != null)
                             {
-                                OpenNodes.Add(neigboringNode);
+                                if (spriteRenderer.bounds.Contains(new Vector3(neigboringNode.position.x, neigboringNode.position.y, transform.position.z)))
+                                {
+                                    neigboringNode.startCost = Mathf.Infinity;
+                                    neigboringNode.targetDistance = Mathf.Infinity;
+                                    neigboringNode.totalCost = Mathf.Infinity;
+                                    totalNodes[gridX, gridY] = neigboringNode;
+                                    intersectingObj = true;
+                                    break;
+                                }
                             }
-
                         }
+                        if (!intersectingObj)
+                        {
+                            float newStartCostScore = currentNode.startCost + Vector2.Distance(currentNode.position, neigboringNode.position);
+                            neigboringNode.targetDistance = Vector2.Distance(neigboringNode.position, target);
+                            if (newStartCostScore < neigboringNode.startCost)
+                            {
+                                neigboringNode.parent = currentNode;
+
+                                neigboringNode.startCost = newStartCostScore;
+                                neigboringNode.totalCost = neigboringNode.startCost + neigboringNode.targetDistance;
+                                if (!OpenNodes.Contains(neigboringNode))
+                                {
+                                    OpenNodes.Add(neigboringNode);
+                                }
+
+                            }
+                        }
+
                         totalNodes[gridX, gridY] = neigboringNode;
 
                     }

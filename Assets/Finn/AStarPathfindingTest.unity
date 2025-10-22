@@ -329,6 +329,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f657a32c2d95324196c850078554b40, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PathfinderAI
+  target: {x: 0, y: 4.3}
+  speed: 0
+  searchAreaWidth: 100
+  searchAreaHeight: 100
+  path: []
 --- !u!212 &1652217002
 SpriteRenderer:
   m_ObjectHideFlags: 0
