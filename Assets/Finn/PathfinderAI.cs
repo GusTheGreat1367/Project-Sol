@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEditor.TerrainTools;
 using UnityEngine;
 
@@ -11,78 +12,93 @@ public class Node
     public float totalCost;
     public bool evaluated;
     public Node parent; 
-    public List<Node> children;
 }
 
 public class PathfinderAI : MonoBehaviour
 {
     public Vector2 target;
-    Node startNode;
-    public Rect searchArea;
-    List<Node> OpenNodes = new List<Node>();
-    Node[,] totalNodes;
-    List<Vector2> path;
+
+
+    public int searchAreaWidth;
+    public int searchAreaHeight;
+
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-
+        Debug.Log(PathFind(target, searchAreaWidth, searchAreaHeight));
     }
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            PathFind();
-        }
     }
 
-    void PathFind()
+    List<Vector2> PathFind(Vector2 target, int searchAreaWidth, int searchAreaHeight)
     {
-        if (searchArea.x < target.x - transform.position.x)
+        Node startNode;
+        List<Node> OpenNodes = new List<Node>();
+        Node[,] totalNodes;
+        List<Vector2> path = new List<Vector2>();
+        int halfWidth = searchAreaWidth / 2;
+        int halfHeight = searchAreaHeight / 2;
+        Vector2 gridWorldOrigin = new Vector2(
+        transform.position.x - halfWidth,
+        transform.position.y - halfHeight
+    );
+        int startX = halfWidth;
+        int startY = halfHeight;
+        totalNodes = new Node[searchAreaWidth, searchAreaHeight];
+        if (searchAreaWidth < Mathf.Abs(target.x - transform.position.x) || searchAreaHeight < Mathf.Abs(target.y - transform.position.y))
         {
-            Debug.LogWarning("Search area X was smaller than required, setting search area X to minimum required area");
-            searchArea.x = target.x - transform.position.x;
+            Debug.LogError("Start position is outside the defined search area bounds.");
+            return null;
         }
-        if (searchArea.y < target.y - transform.position.y)
-        {
-            Debug.LogWarning("Search area Y was smaller than required, setting search area Y to minimum required area");
-            searchArea.y = target.y - transform.position.y;
-        }
-        totalNodes = new Node[Mathf.RoundToInt(searchArea.size.x), Mathf.RoundToInt(searchArea.size.y)];
 
-        for (int x = 0; x < searchArea.x; x++)
+        for (int x = 0; x < searchAreaWidth; x++)
         {
-            for (int y = 0; y < searchArea.y; y++)
+            for (int y = 0; y < searchAreaHeight; y++)
             {
-                Node node = new Node();
-                node.position = new Vector2(x, y);
-                node.startCost = Mathf.Infinity;
-                node.targetDistance = Mathf.Infinity;
-                node.totalCost = Mathf.Infinity;
+                Node node = new Node
+                {
+                    position = new Vector2(gridWorldOrigin.x + x, gridWorldOrigin.y + y),
+                    startCost = Mathf.Infinity,
+                    targetDistance = Mathf.Infinity,
+                    totalCost = Mathf.Infinity
+                };
+
                 totalNodes[x, y] = node;
             }
         }
-        startNode = totalNodes[0, 0];
+        startNode = totalNodes[startX, startY];
         startNode.position = transform.position;
         startNode.startCost = 0;
         startNode.targetDistance = Vector2.Distance(startNode.position, target);
         startNode.totalCost = startNode.targetDistance;
         OpenNodes.Add(startNode);
-        totalNodes[0, 0] = startNode;
+
+        Node targetNode = null;
         while (OpenNodes.Count > 0)
         {
             Node currentNode = OpenNodes.Aggregate((prev, current) => current.totalCost < prev.totalCost ? current : prev);
+            if (Vector2.Distance(currentNode.position, target) < 1f)
+            {
+                targetNode = currentNode;
+                break;
+            }
             for (int x = Mathf.RoundToInt(currentNode.position.x) - 1; x < Mathf.RoundToInt(currentNode.position.x) + 2; x++)
             {
                 for (int y = Mathf.RoundToInt(currentNode.position.y) - 1; y < Mathf.RoundToInt(currentNode.position.y) + 2; y++)
                 {
-                    if (searchArea.Contains(new Vector2(x, y)))
+                    int gridX = Mathf.RoundToInt(x - gridWorldOrigin.x);
+                    int gridY = Mathf.RoundToInt(y - gridWorldOrigin.y);
+
+                    if (gridX < 0 || gridX >= searchAreaWidth || gridY < 0 || gridY >= searchAreaHeight)
                     {
-                        if (new Vector2(x, y) != currentNode.position)
+                        continue;
+                    }
+                    if (new Vector2(x, y) != currentNode.position)
                         {
-                            Node neigboringNode = totalNodes[x, y];
-                            currentNode.children.Add(neigboringNode); 
+                            Node neigboringNode = totalNodes[gridX, gridY];
                             float newStartCostScore = currentNode.startCost + Vector2.Distance(currentNode.position, neigboringNode.position);
                             neigboringNode.targetDistance = Vector2.Distance(neigboringNode.position, target);
                             if (newStartCostScore < neigboringNode.startCost)
@@ -97,23 +113,29 @@ public class PathfinderAI : MonoBehaviour
                                 }
 
                             }
-                            totalNodes[x, y] = neigboringNode;
+                            totalNodes[gridX, gridY] = neigboringNode;
 
                         }
-                    }
 
                 }
             }
             OpenNodes.Remove(currentNode);
             currentNode.evaluated = true;
         }
-        bool pathReconstructionComplete = false;
-        while (!pathReconstructionComplete)
+        if (targetNode == null)
         {
-            for(int i = 0; i < OpenNodes.Count; i++)
-            {
-                
-            }
+            Debug.LogWarning("No path found to the target.");
+            return null;
         }
+
+        Node pathNode = targetNode;
+        while (pathNode != null)
+        {
+            path.Add(pathNode.position);
+            pathNode = pathNode.parent;
+        }
+        Debug.Log("Path found");
+        path.Reverse();
+        return path;
     }
 }
