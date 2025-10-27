@@ -238,12 +238,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 95f60b4eb08ad154cb3efc5bac237cb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  AINumber: 5
+  AINumber: 1
   AIPrefab: {fileID: 271389420182585176, guid: 9bd06c8110ea6af4c89e76a62d14ef3d, type: 3}
   targets:
   - {fileID: 218950217}
   - {fileID: 763915684}
   - {fileID: 1782162660}
+  pathResolution: 1.03
+  loopsBeforeUpdate: 15
+  AISpeed: 1
 --- !u!4 &496435342
 Transform:
   m_ObjectHideFlags: 0

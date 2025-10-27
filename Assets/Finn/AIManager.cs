@@ -1,9 +1,6 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 public class PathFinderAI
 {
@@ -27,10 +24,10 @@ public class AIManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        for(int i = 0; i < AINumber; i++)
+        for (int i = 0; i < AINumber; i++)
         {
             PathFinderAI newAI = new PathFinderAI();
-            newAI.obj = Instantiate(AIPrefab, new Vector2(Random.Range(0,40), Random.Range(0,40)), Quaternion.identity);
+            newAI.obj = Instantiate(AIPrefab, new Vector2(Random.Range(0, 40), Random.Range(0, 40)), Quaternion.identity);
             newAI.obj.name = "AI " + i;
             AIs.Add(newAI);
         }
@@ -39,7 +36,7 @@ public class AIManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        for(int i = 0; i < AIs.Count; i++)
+        for (int i = 0; i < AIs.Count; i++)
         {
             PathFinderAI AI = AIs[i];
             AI.loops++;
@@ -59,7 +56,7 @@ public class AIManager : MonoBehaviour
             }
             else
             {
-                if(AI.loops > loopsBeforeUpdate)
+                if (AI.loops > loopsBeforeUpdate)
                 {
                     AI.loops = 0;
                     float dx = Mathf.Abs(AI.targetPos.x - AIPos.x);
@@ -67,9 +64,9 @@ public class AIManager : MonoBehaviour
                     int padding = 8;
                     int searchAreaWidth = Mathf.Max(1, Mathf.CeilToInt(dx * 2f) + padding);
                     int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
-                    //AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
-                    AI.path.Add(AI.obj.transform.position);
-                    AI.path.Add(AI.targetPos);
+                    AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
+                    //AI.path.Add(AI.obj.transform.position);
+                    //AI.path.Add(AI.targetPos);
 
                     if (AI.path == null)
                     {
@@ -77,7 +74,7 @@ public class AIManager : MonoBehaviour
                     }
                 }
 
-                if(AI.path.Count != 0)
+                if (AI.path != null)
                 {
                     Vector2 nextNode = AI.path[0];
                     Vector2 currentPos = AI.obj.transform.position;
@@ -88,11 +85,12 @@ public class AIManager : MonoBehaviour
                     Vector2 moveDir = (nextNode - currentPos).normalized;
                     //Debug.Log("Moved AI " + i + " from position " + AIPos + " to position " + (AI.obj.transform.position + (Vector3)(moveDir * AISpeed * Time.deltaTime)) + ". AI Move Direction is " + moveDir + ". Current AI Path node is at " + AI.path[0] + ". AI Distance from Node is " + Vector2.Distance(AIPos, AI.path[0]));
                     //AI.obj.transform.position += (Vector3)(moveDir * AISpeed * Time.deltaTime);
-                    Debug.Log(AI.obj.transform.position);
-                    AI.obj.transform.Translate(moveDir * AISpeed * Time.deltaTime);
-                    //AI.obj.transform.position = Vector2.MoveTowards(AI.obj.transform.position, nextNode, AISpeed * Time.deltaTime);
                     float angle = Vector2.SignedAngle(Vector2.up, moveDir);
                     AI.obj.transform.eulerAngles = new Vector3(0, 0, angle);
+                    Debug.Log(AI.obj.transform.position);
+                    AI.obj.transform.Translate(AI.obj.transform.up * AISpeed * Time.deltaTime, Space.World);
+                    //AI.obj.transform.position = Vector2.MoveTowards(AI.obj.transform.position, nextNode, AISpeed * Time.deltaTime);
+
 
                     if (Vector2.Distance(AI.obj.transform.position, nextNode) < 0.1f)
                     {
