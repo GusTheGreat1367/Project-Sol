@@ -1,7 +1,19 @@
+
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 
+public class PathRequest
+{
+    public PathFinderAI AI;
+    public Task<List<Node>> PathfindingTask;
+}
+public class BoundsObj
+{
+    public Rect bounds;
+    public int boundsGameObjID;
+}
 public class PathFinderAI
 {
     public GameObject obj;
@@ -11,6 +23,8 @@ public class PathFinderAI
     public bool targetSet = false;
     public Vector2 targetPos;
     public int loops;
+    public Task<bool[,]> currentObstacleMapTask;
+    public bool currentlyRunningObstacleMapTask;
 }
 public class AIManager : MonoBehaviour
 {
@@ -21,6 +35,8 @@ public class AIManager : MonoBehaviour
     public float pathResolution;
     public int loopsBeforeUpdate;
     public float AISpeed;
+
+    private List<PathRequest> activePathRequests = new List<PathRequest>();
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -36,6 +52,7 @@ public class AIManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        ProcessCompletedRequests();
         for (int i = 0; i < AIs.Count; i++)
         {
             PathFinderAI AI = AIs[i];
@@ -44,13 +61,13 @@ public class AIManager : MonoBehaviour
 
             if (Vector2.Distance(AI.obj.transform.position, AI.targetPos) < 1f)
             {
-                Debug.Log("Target Reached!");
+                //Debug.Log("Target Reached!");
                 AI.targetSet = false;
                 AI.path = new List<Node>();
             }
             if (AI.targetSet == false)
             {
-                Debug.Log("AI " + i + " is pathing to a target");
+                //Debug.Log("AI " + i + " is pathing to a target");
                 AI.targetPos = targets[Mathf.RoundToInt(Random.Range(0, targets.Count))].transform.position;
                 AI.targetSet = true;
             }
@@ -61,28 +78,63 @@ public class AIManager : MonoBehaviour
                 int padding = 8;
                 int searchAreaWidth = Mathf.Max(1, Mathf.CeilToInt(dx * 2f) + padding);
                 int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
-                DrawRectangle(AI.obj.transform.position, new Vector2(searchAreaWidth, searchAreaHeight), Color.green);
-                DrawRectangle(AI.targetPos, new Vector2(2, 2), Color.red);
-                if (AI.loops > loopsBeforeUpdate)
-                {
-                    AI.loops = 0;
-                    AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
-                    //AI.path.Add(AI.obj.transform.position);
-                    //AI.path.Add(AI.targetPos);
+                int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(searchAreaWidth / pathResolution));
+                int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(searchAreaHeight / pathResolution));
 
-                    if (AI.path == null)
-                    {
-                        //Debug.LogError("AI " + i + " was unable to path to target");
-                    }
+                if (!AI.currentlyRunningObstacleMapTask)
+                {
+                    AI.currentlyRunningObstacleMapTask = true;
+                    AI.currentObstacleMapTask = BeginObstacleDetection(AIPos, searchAreaWidth, searchAreaHeight, AI, pathResolution);
                 }
+                else if (AI.currentObstacleMapTask != null && AI.currentObstacleMapTask.IsCompleted)
+                {
+
+
+                    AStar.PathRequestData pathData = new AStar.PathRequestData();
+                    pathData.startPos = AIPos;
+                    pathData.targetPos = AI.targetPos;
+                    pathData.searchWidth = searchAreaWidth;
+                    pathData.searchHeight = searchAreaHeight;
+                    pathData.pathResolution = pathResolution;
+                    pathData.AIPos = AIPos;
+                    pathData.obstacleMap = AI.currentObstacleMapTask.Result;
+                    if (AI.path == null || AI.path.Count == 0)
+                    {
+                        PathRequest request = new PathRequest
+                        {
+                            AI = AI,
+                            PathfindingTask = Task.Run(() => AStar.FindPathAStar(pathData))
+                        };
+
+                        activePathRequests.Add(request);
+                        //AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
+                    }
+                    else if (AI.loops > loopsBeforeUpdate)
+                    {
+                        AI.loops = 0;
+                        PathRequest request = new PathRequest
+                        {
+                            AI = AI,
+                            PathfindingTask = Task.Run(() => AStar.FindPathAStar(pathData))
+                        };
+
+                        activePathRequests.Add(request);
+                    }
+                    AI.currentObstacleMapTask = null;
+                    AI.currentlyRunningObstacleMapTask = false;
+
+                }
+
+
 
                 if (AI.path != null && AI.path.Count > 0)
                 {
-
+                    /*
                     for (int j = 1; j < AI.path.Count; j++)
                     {
                         Debug.DrawLine(AI.path[j - 1].position, AI.path[j].position);
                     }
+                    */
                     Vector2 moveDir = AI.path[0].dir;
                     //Debug.Log("Moved AI " + i + " from position " + AIPos + " to position " + (AI.obj.transform.position + (Vector3)(moveDir * AISpeed * Time.deltaTime)) + ". AI Move Direction is " + moveDir + ". Current AI Path node is at " + AI.path[0] + ". AI Distance from Node is " + Vector2.Distance(AIPos, AI.path[0]));
                     //AI.obj.transform.position += (Vector3)(moveDir * AISpeed * Time.deltaTime);
@@ -106,27 +158,159 @@ public class AIManager : MonoBehaviour
         }
 
     }
+    public bool PathUpdate(List<Node> Path, PathFinderAI AI)
+    {
+        float sizeX = AI.obj.GetComponent<Renderer>().localBounds.size.x * AI.obj.transform.localScale.x;
+        float sizeY = AI.obj.GetComponent<Renderer>().localBounds.size.y * AI.obj.transform.localScale.y;
+        for (int i = 0; i < Path.Count; i++)
+        {
+            bool hitObj = false;
 
-    List<Node> PathFind(Vector2 target, int searchAreaWidth, int searchAreaHeight, GameObject AI, float pathResolution)
+            for (int j = 0; j < 7; j++)
+            {
+                Collider2D hit = Physics2D.OverlapBox(Path[i].position, new Vector2(sizeX, sizeY), j * 45);
+                if (hit != null)
+                {
+                    hitObj = true;
+                    break;
+                }
+            }
+            if (hitObj)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+    private void ProcessCompletedRequests()
+    {
+        // Use ToList() to allow modification of activePathRequests inside the loop (via RemoveAll)
+        List<PathRequest> completed = activePathRequests.Where(r => r.PathfindingTask.IsCompleted).ToList();
+
+        foreach (var request in completed)
+        {
+            if (request.PathfindingTask.Status == TaskStatus.RanToCompletion)
+            {
+                request.AI.path = request.PathfindingTask.Result;
+            }
+            else if (request.PathfindingTask.IsFaulted)
+            {
+                Debug.LogError($"Pathfinding Task for {request.AI.obj.name} failed: {request.PathfindingTask.Exception.InnerException}");
+                request.AI.path = null;
+            }
+        }
+
+        activePathRequests.RemoveAll(r => r.PathfindingTask.IsCompleted);
+    }
+
+    public static void DrawRectangle(Vector3 position, Vector2 extent, Color color)
+    {
+        // Calculate the four corner points relative to the center
+        Vector3 rightOffset = Vector3.right * extent.x;
+        Vector3 upOffset = Vector3.up * extent.y;
+
+        Vector3 p1 = position + rightOffset + upOffset;  // Top-Right
+        Vector3 p2 = position - rightOffset + upOffset;  // Top-Left
+        Vector3 p3 = position - rightOffset - upOffset;  // Bottom-Left
+        Vector3 p4 = position + rightOffset - upOffset;  // Bottom-Right
+
+        // Draw the four lines connecting the corners
+        Debug.DrawLine(p1, p2, color); // Top
+        Debug.DrawLine(p2, p3, color); // Left
+        Debug.DrawLine(p3, p4, color); // Bottom
+        Debug.DrawLine(p4, p1, color); // Right
+    }
+    public async Task<bool[,]> ReturnObstacleMap(Vector2 mapOrigin, int mapWidth, int mapHeight, PathFinderAI AI, float pathResolution)
+    {
+
+        const int checksPerFrame = 100;
+        int checksDoneInBatch = 0;
+        float sizeX = AI.obj.GetComponent<Renderer>().localBounds.size.x * AI.obj.transform.localScale.x;
+        float sizeY = AI.obj.GetComponent<Renderer>().localBounds.size.y * AI.obj.transform.localScale.y;
+
+        //int obstacleMask = LayerMask.GetMask("obstacles");
+        int halfWidth = mapWidth / 2;
+        int halfHeight = mapHeight / 2;
+        int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(mapWidth / pathResolution));
+        int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(mapHeight / pathResolution));
+        bool[,] obstacleMap = new bool[nodeGridWidth, nodeGridHeight];
+        Vector2 gridWorldOrigin = new Vector2(AI.obj.transform.position.x - halfWidth, AI.obj.transform.position.y - halfHeight);
+        for (int x = 0; x < nodeGridWidth; x++)
+        {
+            for (int y = 0; y < nodeGridHeight; y++)
+            {
+                Vector2 nodePos = new Vector2(gridWorldOrigin.x + x * pathResolution, gridWorldOrigin.y + y * pathResolution);
+                bool hitObj = false;
+                for (int r = 0; r < 7; r++)
+                {
+
+                    Collider2D hit = Physics2D.OverlapBox(nodePos, new Vector2(sizeX, sizeY), r * 45);
+
+                    if (hit != null)
+                    {
+                        hitObj = true;
+                        break;
+                    }
+                }
+                obstacleMap[x, y] = hitObj;
+                checksDoneInBatch++;
+
+                if (checksDoneInBatch >= checksPerFrame)
+                {
+                    await Awaitable.NextFrameAsync();
+
+                    checksDoneInBatch = 0;
+                }
+            }
+        }
+        return obstacleMap;
+    }
+    public bool Contains(Rect outerRect, Rect innerRect)
+    {
+        bool minContained = innerRect.xMin >= outerRect.xMin && innerRect.yMin >= outerRect.yMin;
+        bool maxContained = innerRect.xMax <= outerRect.xMax && innerRect.yMax <= outerRect.yMax;
+
+        return minContained && maxContained;
+    }
+    public Task<bool[,]> BeginObstacleDetection(Vector2 mapOrigin, int mapWidth, int mapHeight, PathFinderAI AI, float pathResolution)
+    {
+        return ReturnObstacleMap(mapOrigin, mapWidth, mapHeight, AI, pathResolution);
+    }
+}
+
+public static class AStar
+{
+    public class PathRequestData
+    {
+        public Vector2 startPos;
+        public Vector2 targetPos;
+        public int searchWidth;
+        public int searchHeight;
+        public float pathResolution;
+        public Vector2 AIPos;
+        public bool[,] obstacleMap;
+        public Task<List<Node>> pathFindingTask;
+    }
+    public static List<Node> FindPathAStar(PathRequestData pathData)
     {
         // basic guards
-        if (pathResolution <= 0) pathResolution = 1f;
+        if (pathData.pathResolution <= 0) pathData.pathResolution = 1f;
         Node startNode;
         List<Node> OpenNodes = new List<Node>();
         Node[,] totalNodes;
         List<Node> path = new List<Node>();
-        int halfWidth = searchAreaWidth / 2;
-        int halfHeight = searchAreaHeight / 2;
-        int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(searchAreaWidth / pathResolution));
-        int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(searchAreaHeight / pathResolution));
-        Vector2 gridWorldOrigin = new Vector2(AI.transform.position.x - halfWidth, AI.transform.position.y - halfHeight);
+        int halfWidth = pathData.searchWidth / 2;
+        int halfHeight = pathData.searchHeight / 2;
+        int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(pathData.searchWidth / pathData.pathResolution));
+        int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(pathData.searchHeight / pathData.pathResolution));
+        Vector2 gridWorldOrigin = new Vector2(pathData.AIPos.x - halfWidth, pathData.AIPos.y - halfHeight);
         totalNodes = new Node[nodeGridWidth, nodeGridHeight];
 
         // ensure start is in bounds (recalculate origin if needed)
-        if (AI.transform.position.x < gridWorldOrigin.x || AI.transform.position.x > gridWorldOrigin.x + searchAreaWidth ||
-            AI.transform.position.y < gridWorldOrigin.y || AI.transform.position.y > gridWorldOrigin.y + searchAreaHeight)
+        if (pathData.AIPos.x < gridWorldOrigin.x || pathData.AIPos.x > gridWorldOrigin.x + pathData.searchWidth ||
+            pathData.AIPos.y < gridWorldOrigin.y || pathData.AIPos.y > gridWorldOrigin.y + pathData.searchHeight)
         {
-            Debug.LogError($"Start position {AI.transform.position} is outside search area origin {gridWorldOrigin} size ({searchAreaWidth},{searchAreaHeight}). Expand search area or recenter.");
+            Debug.LogError($"Start position {pathData.AIPos} is outside search area origin {gridWorldOrigin} size ({pathData.searchWidth},{pathData.searchHeight}). Expand search area or recenter.");
             return null;
         }
         for (int x = 0; x < nodeGridWidth; x++)
@@ -135,7 +319,7 @@ public class AIManager : MonoBehaviour
             {
                 Node node = new Node
                 {
-                    position = new Vector2(gridWorldOrigin.x + x * pathResolution, gridWorldOrigin.y + y * pathResolution),
+                    position = new Vector2(gridWorldOrigin.x + x * pathData.pathResolution, gridWorldOrigin.y + y * pathData.pathResolution),
                     startCost = Mathf.Infinity,
                     targetDistance = Mathf.Infinity,
                     totalCost = Mathf.Infinity,
@@ -146,43 +330,34 @@ public class AIManager : MonoBehaviour
                 totalNodes[x, y] = node;
             }
         }
-        int startX = Mathf.Clamp(Mathf.RoundToInt((AI.transform.position.x - gridWorldOrigin.x) / pathResolution), 0, nodeGridWidth - 1);
-        int startY = Mathf.Clamp(Mathf.RoundToInt((AI.transform.position.y - gridWorldOrigin.y) / pathResolution), 0, nodeGridHeight - 1);
+        int startX = Mathf.Clamp(Mathf.RoundToInt((pathData.AIPos.x - gridWorldOrigin.x) / pathData.pathResolution), 0, nodeGridWidth - 1);
+        int startY = Mathf.Clamp(Mathf.RoundToInt((pathData.AIPos.y - gridWorldOrigin.y) / pathData.pathResolution), 0, nodeGridHeight - 1);
         startNode = totalNodes[startX, startY];
-        startNode.position = AI.transform.position;
+        startNode.position = pathData.AIPos;
         startNode.startCost = 0;
-        startNode.targetDistance = Vector2.Distance(startNode.position, target);
+        startNode.targetDistance = Vector2.Distance(startNode.position, pathData.targetPos);
         startNode.totalCost = startNode.targetDistance;
         OpenNodes.Add(startNode);
         Node targetNode = null;
 
         // prepare obstacle mask (use "Obstacles" layer if exists, otherwise use all layers)
-        int obstacleMask = LayerMask.GetMask("Obstacles");
-        if (obstacleMask == 0) obstacleMask = ~0;
-
-        // temporarily disable AI collider to avoid self-blocking
-        Collider2D aiCollider = AI.GetComponent<Collider2D>();
-        bool aiColliderWasEnabled = false;
-        if (aiCollider != null)
-        {
-            aiColliderWasEnabled = aiCollider.enabled;
-            aiCollider.enabled = false;
-        }
+        //int obstacleMask = LayerMask.GetMask("Obstacles");
+        //if (obstacleMask == 0) obstacleMask = ~0;
 
         while (OpenNodes.Count > 0)
         {
             Node currentNode = OpenNodes.Aggregate((prev, current) => current.totalCost < prev.totalCost ? current : prev);
 
             // If close enough to target we are done
-            if (Vector2.Distance(currentNode.position, target) < pathResolution * 0.9f)
+            if (Vector2.Distance(currentNode.position, pathData.targetPos) < pathData.pathResolution * 0.9f)
             {
                 targetNode = currentNode;
                 break;
             }
 
             // get current node indices
-            int currentNodeGridX = Mathf.Clamp(Mathf.RoundToInt((currentNode.position.x - gridWorldOrigin.x) / pathResolution), 0, nodeGridWidth - 1);
-            int currentNodeGridY = Mathf.Clamp(Mathf.RoundToInt((currentNode.position.y - gridWorldOrigin.y) / pathResolution), 0, nodeGridHeight - 1);
+            int currentNodeGridX = Mathf.Clamp(Mathf.RoundToInt((currentNode.position.x - gridWorldOrigin.x) / pathData.pathResolution), 0, nodeGridWidth - 1);
+            int currentNodeGridY = Mathf.Clamp(Mathf.RoundToInt((currentNode.position.y - gridWorldOrigin.y) / pathData.pathResolution), 0, nodeGridHeight - 1);
 
             // iterate neighbors using grid offsets (avoids floating rounding issues)
             for (int dx = -1; dx <= 1; dx++)
@@ -206,18 +381,7 @@ public class AIManager : MonoBehaviour
                     Node neighboringNode = totalNodes[gridX, gridY];
                     Vector2 neighborPos = neighboringNode.position;
                     bool hitObj = false;
-                    float sizeX = AI.GetComponent<Renderer>().localBounds.size.x * AI.transform.localScale.x;
-                    float sizeY = AI.GetComponent<Renderer>().localBounds.size.y * AI.transform.localScale.y;
-
-                    for (int j = 0; j < 7; j++)
-                    {
-                        Collider2D hit = Physics2D.OverlapBox(neighboringNode.position, new Vector2(sizeX, sizeY), j * 45);
-                        if (hit != null)
-                        {
-                            hitObj = true;
-                            break;
-                        }
-                    }
+                    hitObj = pathData.obstacleMap[gridX, gridY];
                     if (hitObj == true)
                     {
                         neighboringNode.startCost = Mathf.Infinity;
@@ -229,7 +393,7 @@ public class AIManager : MonoBehaviour
 
 
                     float newStartCostScore = currentNode.startCost + Vector2.Distance(currentNode.position, neighboringNode.position);
-                    neighboringNode.targetDistance = Vector2.Distance(neighboringNode.position, target);
+                    neighboringNode.targetDistance = Vector2.Distance(neighboringNode.position, pathData.targetPos);
                     if (newStartCostScore < neighboringNode.startCost)
                     {
                         neighboringNode.parent = currentNode;
@@ -248,15 +412,9 @@ public class AIManager : MonoBehaviour
             currentNode.evaluated = true;
         }
 
-        // restore AI collider
-        if (aiCollider != null)
-        {
-            aiCollider.enabled = aiColliderWasEnabled;
-        }
-
         if (targetNode == null)
         {
-            Debug.LogWarning("No path found to the target. Possible causes: search area too small, obstacles block the route, or pathResolution is too large.");
+            //Debug.LogWarning("No path found to the target. Possible causes: search area too small, obstacles block the route, or pathResolution is too large.");
             return null;
         }
 
@@ -276,25 +434,8 @@ public class AIManager : MonoBehaviour
             pathNode = pathNode.parent;
             i++;
         }
-        Debug.Log("Path found");
+        //Debug.Log("Path found");
         path.Reverse();
         return path;
-    }
-    public static void DrawRectangle(Vector3 position, Vector2 extent, Color color)
-    {
-        // Calculate the four corner points relative to the center
-        Vector3 rightOffset = Vector3.right * extent.x;
-        Vector3 upOffset = Vector3.up * extent.y;
-
-        Vector3 p1 = position + rightOffset + upOffset;  // Top-Right
-        Vector3 p2 = position - rightOffset + upOffset;  // Top-Left
-        Vector3 p3 = position - rightOffset - upOffset;  // Bottom-Left
-        Vector3 p4 = position + rightOffset - upOffset;  // Bottom-Right
-
-        // Draw the four lines connecting the corners
-        Debug.DrawLine(p1, p2, color); // Top
-        Debug.DrawLine(p2, p3, color); // Left
-        Debug.DrawLine(p3, p4, color); // Bottom
-        Debug.DrawLine(p4, p1, color); // Right
     }
 }
