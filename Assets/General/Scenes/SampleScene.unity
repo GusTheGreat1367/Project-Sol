@@ -245,8 +245,9 @@ MonoBehaviour:
   - {fileID: 763915684}
   - {fileID: 1782162660}
   pathResolution: 1
-  loopsBeforeUpdate: 100
+  loopsBeforeUpdate: 50
   AISpeed: 10
+  averageAITaskTime: 0
 --- !u!4 &496435342
 Transform:
   m_ObjectHideFlags: 0

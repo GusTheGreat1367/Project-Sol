@@ -25,6 +25,9 @@ public class PathFinderAI
     public int loops;
     public Task<bool[,]> currentObstacleMapTask;
     public bool currentlyRunningObstacleMapTask;
+    public float currentTaskStartTime;
+    public float currentTaskEndTime;
+    public int currentTaskTotalFrames;
 }
 public class AIManager : MonoBehaviour
 {
@@ -35,7 +38,7 @@ public class AIManager : MonoBehaviour
     public float pathResolution;
     public int loopsBeforeUpdate;
     public float AISpeed;
-
+    public float averageAITaskTime;
     private List<PathRequest> activePathRequests = new List<PathRequest>();
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
@@ -53,6 +56,7 @@ public class AIManager : MonoBehaviour
     void Update()
     {
         ProcessCompletedRequests();
+        List<float> AverageAITaskTimeThisFrame = new List<float>();
         for (int i = 0; i < AIs.Count; i++)
         {
             PathFinderAI AI = AIs[i];
@@ -84,16 +88,20 @@ public class AIManager : MonoBehaviour
                     int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
                     int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(searchAreaWidth / pathResolution));
                     int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(searchAreaHeight / pathResolution));
-
+                    AI.currentTaskTotalFrames++;
                     if (!AI.currentlyRunningObstacleMapTask)
                     {
+                        AI.currentTaskTotalFrames = 0;
+                        AI.currentTaskStartTime = Time.time;
                         AI.currentlyRunningObstacleMapTask = true;
                         AI.currentObstacleMapTask = BeginObstacleDetection(AIPos, searchAreaWidth, searchAreaHeight, AI, pathResolution);
                     }
                     else if (AI.currentObstacleMapTask != null && AI.currentObstacleMapTask.IsCompleted)
                     {
-
-
+                        AI.currentTaskEndTime = Time.time;
+                        AverageAITaskTimeThisFrame.Add(AI.currentTaskEndTime - AI.currentTaskStartTime);
+                        averageAITaskTime = AverageAITaskTimeThisFrame.Average();
+                        Debug.Log("AI " + i + "'s obstacle map task took " + (AI.currentTaskEndTime - AI.currentTaskStartTime) + " and the current task took " + AI.currentTaskTotalFrames + " frames. The average AI task time is currently " + averageAITaskTime);
                         AStar.PathRequestData pathData = new AStar.PathRequestData();
                         pathData.startPos = AIPos;
                         pathData.targetPos = AI.targetPos;
@@ -134,14 +142,14 @@ public class AIManager : MonoBehaviour
                     AI.obj.transform.position = Vector2.MoveTowards(AI.obj.transform.position, AI.path[0].position, AISpeed * Time.deltaTime);
                     //float angle = Vector2.SignedAngle(Vector2.down, moveDir);
                     //AI.obj.transform.eulerAngles = new Vector3(0, 0, angle);
-                    Debug.Log(AI.obj.transform.position);
+                    //Debug.Log(AI.obj.transform.position);
                     //AI.obj.transform.Translate(moveDir * AISpeed * Time.deltaTime, Space.World);
                     //AI.obj.transform.position = Vector2.MoveTowards(AI.obj.transform.position, nextNode, AISpeed * Time.deltaTime);
 
 
                     if (Vector2.Distance(AI.obj.transform.position, AI.path[0].position) < 0.1f)
                     {
-                        Debug.Log(AI.path.Count);
+                        //Debug.Log(AI.path.Count);
                         AI.path.RemoveAt(0);
                         //Debug.Log("rebuilt list");
                     }
@@ -215,8 +223,7 @@ public class AIManager : MonoBehaviour
     }
     public async Task<bool[,]> ReturnObstacleMap(Vector2 mapOrigin, int mapWidth, int mapHeight, PathFinderAI AI, float pathResolution)
     {
-
-        const int checksPerFrame = 100;
+        const int checksPerFrame = 200;
         int checksDoneInBatch = 0;
         float sizeX = AI.obj.GetComponent<Renderer>().localBounds.size.x * AI.obj.transform.localScale.x;
         float sizeY = AI.obj.GetComponent<Renderer>().localBounds.size.y * AI.obj.transform.localScale.y;
