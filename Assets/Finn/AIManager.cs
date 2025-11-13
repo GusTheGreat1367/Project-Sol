@@ -1,4 +1,5 @@
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,11 +24,21 @@ public class PathFinderAI
     public bool targetSet = false;
     public Vector2 targetPos;
     public int loops;
-    public Task<bool[,]> currentObstacleMapTask;
-    public bool currentlyRunningObstacleMapTask;
-    public float currentTaskStartTime;
-    public float currentTaskEndTime;
-    public int currentTaskTotalFrames;
+    public bool currentlyInAITask;
+    public AIPathFindingData pathData = new AIPathFindingData();
+    public int instanceID;
+}
+public class AIPathFindingData
+{
+    public Vector2 mapOrigin = new Vector2();
+    public int mapWidth = new int();
+    public int mapHeight = new int();
+    public float pathResolution = new float();
+}
+public class ObstacleMapReturn
+{
+    public bool[,] obstacleMap;
+    public PathFinderAI pathfinderAI;
 }
 public class AIManager : MonoBehaviour
 {
@@ -40,14 +51,18 @@ public class AIManager : MonoBehaviour
     public float AISpeed;
     public float averageAITaskTime;
     private List<PathRequest> activePathRequests = new List<PathRequest>();
+    private bool currentlyRunningObstacleMapTask;
+    public Task<List<ObstacleMapReturn>> currentObstacleMapTask;
+    public List<PathFinderAI> AIsWaitingForTask = new List<PathFinderAI>();
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    void Awake()
     {
         for (int i = 0; i < AINumber; i++)
         {
             PathFinderAI newAI = new PathFinderAI();
-            newAI.obj = Instantiate(AIPrefab, new Vector2(Random.Range(0, 40), Random.Range(0, 40)), Quaternion.identity);
+            newAI.obj = Instantiate(AIPrefab, new Vector2(UnityEngine.Random.Range(0, 40), UnityEngine.Random.Range(0, 40)), Quaternion.identity);
             newAI.obj.name = "AI " + i;
+            newAI.instanceID = newAI.obj.gameObject.GetInstanceID();
             AIs.Add(newAI);
         }
     }
@@ -56,7 +71,14 @@ public class AIManager : MonoBehaviour
     void Update()
     {
         ProcessCompletedRequests();
-        List<float> AverageAITaskTimeThisFrame = new List<float>();
+        ProcessCompletedObstacleMapRequests();
+        if (!currentlyRunningObstacleMapTask && AIsWaitingForTask.Count > 0)
+        {
+            currentObstacleMapTask = BeginObstacleDetection(AIsWaitingForTask);
+            currentlyRunningObstacleMapTask = true;
+            AIsWaitingForTask.Clear();
+
+        }
         for (int i = 0; i < AIs.Count; i++)
         {
             PathFinderAI AI = AIs[i];
@@ -72,62 +94,87 @@ public class AIManager : MonoBehaviour
             if (AI.targetSet == false)
             {
                 //Debug.Log("AI " + i + " is pathing to a target");
-                AI.targetPos = targets[Mathf.RoundToInt(Random.Range(0, targets.Count))].transform.position;
+                AI.targetPos = targets[Mathf.RoundToInt(UnityEngine.Random.Range(0, targets.Count))].transform.position;
                 AI.targetSet = true;
-                AI.currentlyRunningObstacleMapTask = false;
-                AI.currentObstacleMapTask = null;
+                AI.currentlyInAITask = false;
+
             }
             else
             {
-                if (AI.path == null || AI.path.Count == 0 || loopsBeforeUpdate < 1 || AI.currentlyRunningObstacleMapTask)
+
+                if ((AI.loops > loopsBeforeUpdate || AI.path.Count == 0 || AI.path == null) && !AIsWaitingForTask.Contains(AI))
                 {
+                    AIsWaitingForTask.Add(AI);
                     float dx = Mathf.Abs(AI.targetPos.x - AIPos.x);
                     float dy = Mathf.Abs(AI.targetPos.y - AIPos.y);
-                    int padding = 8;
+                    int padding = 16;
                     int searchAreaWidth = Mathf.Max(1, Mathf.CeilToInt(dx * 2f) + padding);
                     int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
                     int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(searchAreaWidth / pathResolution));
                     int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(searchAreaHeight / pathResolution));
-                    AI.currentTaskTotalFrames++;
-                    if (!AI.currentlyRunningObstacleMapTask)
-                    {
-                        AI.currentTaskTotalFrames = 0;
-                        AI.currentTaskStartTime = Time.time;
-                        AI.currentlyRunningObstacleMapTask = true;
-                        AI.currentObstacleMapTask = BeginObstacleDetection(AIPos, searchAreaWidth, searchAreaHeight, AI, pathResolution);
-                    }
-                    else if (AI.currentObstacleMapTask != null && AI.currentObstacleMapTask.IsCompleted)
-                    {
-                        AI.currentTaskEndTime = Time.time;
-                        AverageAITaskTimeThisFrame.Add(AI.currentTaskEndTime - AI.currentTaskStartTime);
-                        averageAITaskTime = AverageAITaskTimeThisFrame.Average();
-                        Debug.Log("AI " + i + "'s obstacle map task took " + (AI.currentTaskEndTime - AI.currentTaskStartTime) + " and the current task took " + AI.currentTaskTotalFrames + " frames. The average AI task time is currently " + averageAITaskTime);
-                        AStar.PathRequestData pathData = new AStar.PathRequestData();
-                        pathData.startPos = AIPos;
-                        pathData.targetPos = AI.targetPos;
-                        pathData.searchWidth = searchAreaWidth;
-                        pathData.searchHeight = searchAreaHeight;
-                        pathData.pathResolution = pathResolution;
-                        pathData.AIPos = AIPos;
-                        pathData.obstacleMap = AI.currentObstacleMapTask.Result;
-                        PathRequest request = new PathRequest
-                        {
-                            AI = AI,
-                            PathfindingTask = Task.Run(() => AStar.FindPathAStar(pathData))
-                        };
-
-                        activePathRequests.Add(request);
-                        //AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
-
-                        AI.currentObstacleMapTask = null;
-                        AI.currentlyRunningObstacleMapTask = false;
-
-                    }
+                    AIs[i].pathData.mapOrigin = AIPos;
+                    AIs[i].pathData.pathResolution = pathResolution;
+                    AIs[i].pathData.mapWidth = searchAreaWidth;
+                    AIs[i].pathData.mapHeight = searchAreaHeight;
+                    AI.currentlyInAITask = true;
+                    AI.loops = 0;
                 }
+                //if (AI.currentlyInAITask)
+                //{
+                //float dx = Mathf.Abs(AI.targetPos.x - AIPos.x);
+                //float dy = Mathf.Abs(AI.targetPos.y - AIPos.y);
+                //int padding = 8;
+                //int searchAreaWidth = Mathf.Max(1, Mathf.CeilToInt(dx * 2f) + padding);
+                //int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
+                //int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(searchAreaWidth / pathResolution));
+                //int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(searchAreaHeight / pathResolution));
+                //    if (currentObstacleMapTask != null && currentObstacleMapTask.IsCompleted)
+                //    {
+                //        if (currentObstacleMapTask.Result.pathfinderAIs.Find(x => AIs[i] == x) != null)
+                //        {
+                //            AStar.PathRequestData pathData = new AStar.PathRequestData();
+                //            pathData.startPos = AIPos;
+                //            pathData.targetPos = AI.targetPos;
+                //            pathData.searchWidth = searchAreaWidth;
+                //            pathData.searchHeight = searchAreaHeight;
+                //            pathData.pathResolution = pathResolution;
+                //            pathData.AIPos = AIPos;
+                //            bool[,] currentObstacleMapTaskResult = currentObstacleMapTask.Result.obstacleMaps[currentObstacleMapTask.Result.pathfinderAIs.FindIndex(x => AIs[i] == x)];
+                //            pathData.obstacleMap = currentObstacleMapTaskResult;
+                //            PathRequest request = new PathRequest
+                //            {
+                //                AI = AI,
+                //                PathfindingTask = Task.Run(() => AStar.FindPathAStar(pathData))
+                //            };
+
+                //            activePathRequests.Add(request);
+                //            //AI.path = PathFind(AI.targetPos, searchAreaWidth, searchAreaHeight, AI.obj, pathResolution);
+                //            AI.currentlyInAITask = false;
+                //        }
+                //    }
+                //    else if (currentObstacleMapTask == null)
+                //    {
+                //        AI.currentlyInAITask = false;
+                //    }
+                //}
+                //else if (!AI.currentlyInAITask && AI.loops > loopsBeforeUpdate)
+                //{
+                //    float dx = Mathf.Abs(AI.targetPos.x - AIPos.x);
+                //    float dy = Mathf.Abs(AI.targetPos.y - AIPos.y);
+                //    int padding = 8;
+                //    int searchAreaWidth = Mathf.Max(1, Mathf.CeilToInt(dx * 2f) + padding);
+                //    int searchAreaHeight = Mathf.Max(1, Mathf.CeilToInt(dy * 2f) + padding);
+                //    AIsWaitingForTask.Add(AIs[i]);
+                //    AIs[i].currentlyInAITask = true;
+                //    AIs[i].loops = 0;
+                //    Debug.Log(AIPos);
+
+                //    Debug.Log("prepared for pathfinding " + AI.pathData);
+                //}
 
 
 
-
+                //Debug.Log(AI.path.Count);
                 if (AI.path != null && AI.path.Count > 0)
                 {
                     /*
@@ -154,10 +201,10 @@ public class AIManager : MonoBehaviour
                         //Debug.Log("rebuilt list");
                     }
                 }
+                AI.loops++;
             }
             AIs[i] = AI;
         }
-
     }
     public bool PathUpdate(List<Node> Path, PathFinderAI AI)
     {
@@ -182,6 +229,45 @@ public class AIManager : MonoBehaviour
             }
         }
         return false;
+    }
+    private void ProcessCompletedObstacleMapRequests()
+    {
+        if (currentObstacleMapTask != null && currentObstacleMapTask.IsCompleted)
+        {
+            if (currentObstacleMapTask.Status == TaskStatus.RanToCompletion)
+            {
+                Debug.Log("Preparing to pathfind");
+                for (int i = 0; i < currentObstacleMapTask.Result.Count; i++)
+                {
+                    PathFinderAI pathFinderAI = currentObstacleMapTask.Result[i].pathfinderAI;
+                    AStar.PathRequestData pathData = new();
+
+                    pathData.AIPos = pathFinderAI.obj.transform.position;
+                    pathData.targetPos = pathFinderAI.targetPos;
+                    pathData.obstacleMap = currentObstacleMapTask.Result[i].obstacleMap;
+                    pathData.pathResolution = pathResolution;
+                    int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(pathData.searchWidth / pathData.pathResolution));
+                    int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(pathData.searchHeight / pathData.pathResolution));
+                    pathData.searchHeight = currentObstacleMapTask.Result[i].obstacleMap.GetLength(1);
+                    pathData.searchWidth = currentObstacleMapTask.Result[i].obstacleMap.GetLength(0);
+                    PathRequest request = new PathRequest
+                    {
+                        AI = pathFinderAI,
+                        PathfindingTask = Task.Run(() => AStar.FindPathAStar(pathData))
+                    };
+                    Debug.Log("Begun Pathfinding!");
+                    activePathRequests.Add(request);
+                }
+                currentObstacleMapTask = null;
+                currentlyRunningObstacleMapTask = false;
+
+
+            }
+            else if (currentObstacleMapTask.Status == TaskStatus.Faulted)
+            {
+                Debug.LogError($"Obstacle Task is faulted: {currentObstacleMapTask.Exception.InnerException}");
+            }
+        }
     }
     private void ProcessCompletedRequests()
     {
@@ -221,49 +307,74 @@ public class AIManager : MonoBehaviour
         Debug.DrawLine(p3, p4, color); // Bottom
         Debug.DrawLine(p4, p1, color); // Right
     }
-    public async Task<bool[,]> ReturnObstacleMap(Vector2 mapOrigin, int mapWidth, int mapHeight, PathFinderAI AI, float pathResolution)
+    public async Task<List<ObstacleMapReturn>> ReturnObstacleMap(List<Vector2> mapOrigins, List<int> mapWidths, List<int> mapHeights, List<PathFinderAI> AIs, List<float> pathResolutions)
     {
-        const int checksPerFrame = 200;
-        int checksDoneInBatch = 0;
-        float sizeX = AI.obj.GetComponent<Renderer>().localBounds.size.x * AI.obj.transform.localScale.x;
-        float sizeY = AI.obj.GetComponent<Renderer>().localBounds.size.y * AI.obj.transform.localScale.y;
-
-        //int obstacleMask = LayerMask.GetMask("obstacles");
-        int halfWidth = mapWidth / 2;
-        int halfHeight = mapHeight / 2;
-        int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(mapWidth / pathResolution));
-        int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(mapHeight / pathResolution));
-        bool[,] obstacleMap = new bool[nodeGridWidth, nodeGridHeight];
-        Vector2 gridWorldOrigin = new Vector2(AI.obj.transform.position.x - halfWidth, AI.obj.transform.position.y - halfHeight);
-        for (int x = 0; x < nodeGridWidth; x++)
+        const int AIsPerFrame = 5;
+        int AIsDoneInBatch = 0;
+        List<ObstacleMapReturn> obstacleMapReturn = new List<ObstacleMapReturn>();
+        Debug.Log(mapWidths.Count + " Mapwidths count");
+        List<float> sizeX = new List<float>();
+        List<float> sizeY = new List<float>();
+        List<int> halfWidth = new List<int>();
+        List<int> halfHeight = new List<int>();
+        List<int> nodeGridWidth = new List<int>();
+        List<int> nodeGridHeight = new List<int>();
+        List<bool[,]> obstacleMap = new List<bool[,]>();
+        List<Vector2> gridWorldOrigin = new();
+        int AICount = AIs.Count;
+        Debug.Log("AIs count " + AICount);
+        for (int i = 0; i < AICount; i++)
         {
-            for (int y = 0; y < nodeGridHeight; y++)
+            sizeX.Add(AIs[i].obj.GetComponent<Renderer>().localBounds.size.x * AIs[i].obj.transform.localScale.x);
+            sizeY.Add(AIs[i].obj.GetComponent<Renderer>().localBounds.size.y * AIs[i].obj.transform.localScale.y);
+            Debug.Log(i);
+            halfWidth.Add(mapWidths[i] / 2);
+            halfHeight.Add(mapHeights[i] / 2);
+            nodeGridWidth.Add(Mathf.Max(1, Mathf.RoundToInt(mapWidths[i] / pathResolutions[i])));
+            nodeGridHeight.Add(Mathf.Max(1, Mathf.RoundToInt(mapHeights[i] / pathResolutions[i])));
+            obstacleMap.Add(new bool[nodeGridWidth[i], nodeGridHeight[i]]);
+            gridWorldOrigin.Add(new Vector2(AIs[i].obj.transform.position.x - halfWidth[i], AIs[i].obj.transform.position.y - halfHeight[i]));
+            for (int x = 0; x < nodeGridWidth[i]; x++)
             {
-                Vector2 nodePos = new Vector2(gridWorldOrigin.x + x * pathResolution, gridWorldOrigin.y + y * pathResolution);
-                bool hitObj = false;
-                for (int r = 0; r < 7; r++)
+                for (int y = 0; y < nodeGridHeight[i]; y++)
                 {
-
-                    Collider2D hit = Physics2D.OverlapBox(nodePos, new Vector2(sizeX, sizeY), r * 45);
-
-                    if (hit != null)
+                    Vector2 nodePos = new Vector2(
+                        gridWorldOrigin[i].x + x * pathResolutions[i],
+                        gridWorldOrigin[i].y + y * pathResolutions[i]
+                    );
+                    bool hitObj = false;
+                    for (int r = 0; r < 7; r++)
                     {
-                        hitObj = true;
-                        break;
+
+                        Collider2D hit = Physics2D.OverlapBox(nodePos, new Vector2(sizeX[i], sizeY[i]), r * 45);
+
+                        if (hit != null)
+                        {
+                            hitObj = true;
+                            break;
+                        }
                     }
+                    obstacleMap[i][x, y] = hitObj;
                 }
-                obstacleMap[x, y] = hitObj;
-                checksDoneInBatch++;
 
-                if (checksDoneInBatch >= checksPerFrame)
-                {
-                    await Awaitable.NextFrameAsync();
+            }
+            obstacleMapReturn.Add(new ObstacleMapReturn
+            {
+                obstacleMap = obstacleMap[i],
+                pathfinderAI = AIs[i]
+            });
+            obstacleMapReturn[i].obstacleMap = obstacleMap[i];
+            obstacleMapReturn[i].pathfinderAI = AIs[i];
+            AIsDoneInBatch++;
+            if (AIsDoneInBatch > AIsPerFrame)
+            {
+                AIsDoneInBatch = 0;
 
-                    checksDoneInBatch = 0;
-                }
+                await Awaitable.NextFrameAsync();
             }
         }
-        return obstacleMap;
+
+        return obstacleMapReturn;
     }
     public bool Contains(Rect outerRect, Rect innerRect)
     {
@@ -272,8 +383,28 @@ public class AIManager : MonoBehaviour
 
         return minContained && maxContained;
     }
-    public Task<bool[,]> BeginObstacleDetection(Vector2 mapOrigin, int mapWidth, int mapHeight, PathFinderAI AI, float pathResolution)
+    public Task<List<ObstacleMapReturn>> BeginObstacleDetection(List<PathFinderAI> AI)
     {
+        List<int> mapWidth = new List<int>();
+        List<int> mapHeight = new List<int>();
+        List<float> pathResolution = new List<float>();
+        List<Vector2> mapOrigin = new List<Vector2>();
+        for (int i = 0; i < AI.Count; i++)
+        {
+            try
+            {
+                mapWidth.Add(AI[i].pathData.mapWidth);
+                mapHeight.Add(AI[i].pathData.mapHeight);
+                pathResolution.Add(AI[i].pathData.pathResolution);
+                mapOrigin.Add(AI[i].pathData.mapOrigin);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Error collecting path data for AI {AI[i].obj.name} at index {i}. The lists may now be mismatched. Error: {e.Message}");
+                // Optional: Break the loop or return null here to prevent the mismatched lists from causing the later error.
+                return null; // Return a null task if data collection fails for safety.
+            }
+        }
         return ReturnObstacleMap(mapOrigin, mapWidth, mapHeight, AI, pathResolution);
     }
 }
@@ -282,7 +413,6 @@ public static class AStar
 {
     public class PathRequestData
     {
-        public Vector2 startPos;
         public Vector2 targetPos;
         public int searchWidth;
         public int searchHeight;
@@ -303,7 +433,10 @@ public static class AStar
         int halfHeight = pathData.searchHeight / 2;
         int nodeGridWidth = Mathf.Max(1, Mathf.RoundToInt(pathData.searchWidth / pathData.pathResolution));
         int nodeGridHeight = Mathf.Max(1, Mathf.RoundToInt(pathData.searchHeight / pathData.pathResolution));
-        Vector2 gridWorldOrigin = new Vector2(pathData.AIPos.x - halfWidth, pathData.AIPos.y - halfHeight);
+        Vector2 gridWorldOrigin = new Vector2(
+        pathData.AIPos.x - pathData.searchWidth / 2f,
+        pathData.AIPos.y - pathData.searchHeight / 2f
+        );
         totalNodes = new Node[nodeGridWidth, nodeGridHeight];
 
         // ensure start is in bounds (recalculate origin if needed)
@@ -414,7 +547,7 @@ public static class AStar
 
         if (targetNode == null)
         {
-            //Debug.LogWarning("No path found to the target. Possible causes: search area too small, obstacles block the route, or pathResolution is too large.");
+            Debug.LogWarning("No path found to the target. Possible causes: search area too small, obstacles block the route, or pathResolution is too large.");
             return null;
         }
 

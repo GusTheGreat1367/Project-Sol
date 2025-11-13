@@ -8,6 +8,8 @@ public class CameraMovement : MonoBehaviour
     public Rigidbody2D rb;
     public float cameraMoveForce = 1f;
     public float cameraRBMaxSpeed = 5f;
+    public Camera cam;
+    public ParrallaxTest parrallax;
     // Start is called once before the first execution of Update after the MonoBehaviour is created\
     private void Awake()
     {
@@ -34,6 +36,11 @@ public class CameraMovement : MonoBehaviour
     void Update()
     {
         Vector2 moveDir = movement.ReadValue<Vector2>();
+        if (moveDir != Vector2.zero)
+        {
+            parrallax.Move(moveDir * cameraMoveForce);
+        }
+
         rb.AddForce(moveDir * cameraMoveForce);
     }
 }
