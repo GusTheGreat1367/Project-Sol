@@ -1,33 +1,61 @@
+using System;
 using UnityEngine;
-/*
-public class OtherSpaceStationPeices : MonoBehaviour
-{
-    class Pieces//each peice will be a struct in this class
-    {
-        struct Structual_piece
-        { //make a struct like this for each peice
-            public Script StructualPiece;
-            public int X;
-            public int Y;
-            public int R; //rotation
-        }
-        struct ResourceMiner_piece
-        {
-            public Script ResourceMinerPiece;
-            public int X;
-            public int Y;
-            public int R; //rotation
-        }
-    }
-    public void PeiceSelection(Pieces piece){
+using System.Collections.Generic;
+using Structual_Piece;
+using ResourceMiner_piece;
+using RootSpaceStationPeice;
 
-        void OnMouseDown(Pieces.Structual_piece peice)
+namespace OtherSpaceStationPeices
+{
+    public class OtherSpaceStationPeices : MonoBehaviour
+    {
+        int i = 0; 
+        public List<Item> pieces= new List<Item>() {Structual_Piece, ResourceMiner_piece};
+        RootSpaceStationPeice rootPiece = new RootSpaceStationPeice();
+
+
+
+        void Update()
         {
-            SelectedPiece = Pieces.Structual_piece;
-            Piece = SelectedPiece;//makes it so Piece is a clone of selectedPeice. 
-//ex: Pieces.Structual_piece -> SelectedPiece -> Piece so Pieces.Structual_piece is not directly affected.
+            while (i < pieces.Count)
+            {
+                if (Input.GetKey(KeyCode.E))
+                {
+                    var SelectedPiece = pieces[i];
+                    i += 1;
+                    if (i > pieces.Count) // might not work bc the for loop might have already exited
+                    {
+                        i = 0;
+                    }
+                }
+            }
+            if(Input.GetKey(KeyCode.P))
+            {
+                //snap the piece to the root piece 
+                // ALSO IN RootSpaceStationPeice.cs possible double unless changed
+                rootPiece.pieces += 1;
+            }
+            if (Input.GetKey(KeyCode.R))
+            {
+                SelectedPiece.R += 90; 
+
+            }
+            if (Input.GetKey(KeyCode.RightArrow))
+            {
+                SelectedPiece.X += 1;
+            }
+            if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                SelectedPiece.X -= 1;
+            }
+            if(Input.GetKey(KeyCode.UpArrow))
+            {
+                SelectedPiece.Y += 1;
+            }
+            if(Input.GetKey(KeyCode.DownArrow))
+            {
+                SelectedPiece.Y -= 1;   
+            }
         }
     }
-    
 }
-*/
