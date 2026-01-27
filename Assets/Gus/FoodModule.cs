@@ -32,8 +32,8 @@ namespace FoodModule
         void Activation()//on build.cs or RootSpaceStation.cs call Structual_piece.Activation(); to start the function
         {
             //control for the piece
-            if ((SpaceStation.resources["Carbon"] == 100) && (SpaceStation.resources["H2O"] == 100))
-            {
+            if ((SpaceStation.resources["Carbon"] == 100) && (SpaceStation.resources["H2O"] == 100)) // refines O2 && Carbon into food 
+            {                                                                                        // That will help create more people 
                 SpaceStation.resources["Carbon"] -= 50;
                 SpaceStation.resources["H2O"] -= 50;
                 SpaceStation.resources["Food"] += 50;
