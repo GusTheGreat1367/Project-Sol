@@ -22,6 +22,7 @@ namespace RootSpaceStationPeice
         private int Y;
         private int Z;
         private int R;
+        List<Item>SnappedPieces = new List<Item>();
 
         private class FadingMessage
         {
@@ -94,6 +95,7 @@ namespace RootSpaceStationPeice
             {
                 //snap the piece
                 pieces += 1;
+                SnappedPieces.Add(SelectedPiece);
             }
             
             // Commenting out this check as OtherSpaceStationPeices.SelectedPiece is not accessible staticly
