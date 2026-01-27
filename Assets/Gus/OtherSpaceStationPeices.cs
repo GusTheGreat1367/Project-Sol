@@ -3,15 +3,15 @@ using UnityEngine;
 using System.Collections.Generic;
 using Structual_Piece;
 using ResourceMiner_piece;
-using RootSpaceStationPeice;
+using FoodModule;
 
 namespace OtherSpaceStationPeices
 {
     public class OtherSpaceStationPeices : MonoBehaviour
     {
         int i = 0; 
-        public List<Item> pieces= new List<Item>() {Structual_Piece, ResourceMiner_piece};
-        RootSpaceStationPeice rootPiece = new RootSpaceStationPeice();
+        public List<Type> pieces = new List<Type>() {Structual_Piece.Structual_piece, ResourceMiner_piece.ResourceMiner_piece, FoodModule.FoodModule};
+        public List<Item> AttPieces = new List<Item>();
 
 
 
@@ -29,11 +29,14 @@ namespace OtherSpaceStationPeices
                     }
                 }
             }
+            //use mouse to move pieces
+            //use button to end build
             if(Input.GetKey(KeyCode.P))
             {
                 //snap the piece to the root piece 
                 // ALSO IN RootSpaceStationPeice.cs possible double unless changed
                 rootPiece.pieces += 1;
+                AttPieces.Add(SelectedPiece);
             }
             if (Input.GetKey(KeyCode.R))
             {
