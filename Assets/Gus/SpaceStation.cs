@@ -1,4 +1,3 @@
-using UnityEngine;
 using System.Collections.Generic;
 using Structual_piece;
 using ResourceMiner_piece;

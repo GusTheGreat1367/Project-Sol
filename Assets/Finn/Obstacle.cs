@@ -27,13 +27,13 @@ public class ObstacleObj : MonoBehaviour
     }
     public void LateUpdate()
     {
-        if (Vector2.Distance(new Vector2(objObstacle.position.x, objObstacle.position.y), transform.position) < 0.001f)
+        if (Vector2.Distance(new Vector2(objObstacle.position.x, objObstacle.position.y), transform.position) > 0.1f)
         {
-            objObstacle.position = new float2(transform.position.x, transform.position.y);
+            objObstacle.position = new Float2(transform.position.x, transform.position.y);
         }
         if (new Vector2(objObstacle.size.x, objObstacle.size.y) != new Vector2(GetComponent<Collider2D>().bounds.size.x, GetComponent<Collider2D>().bounds.size.y))
         {
-            objObstacle.size = new float2(GetComponent<Collider2D>().bounds.size.x, GetComponent<Collider2D>().bounds.size.y);
+            objObstacle.size = new Float2(GetComponent<Collider2D>().bounds.size.x, GetComponent<Collider2D>().bounds.size.y);
         }
     }
     public void OnDestroy()

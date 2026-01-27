@@ -75,7 +75,7 @@ public class ParrallaxTest : MonoBehaviour
             for (int j = 0; j < starLayers[i].Count; j++)
             {
                 starLayers[i][j].transform.Translate(-speed * layerSpeed * Time.deltaTime);
-                if (!DetectObstaclesInPosition.ContainsPoint(new float2(camPos.x, camPos.y), new float2(camSpace.x, camSpace.y), new float2(starLayers[i][j].transform.position.x, starLayers[i][j].transform.position.y)).any)
+                if (!DetectObstaclesInPosition.ContainsPoint(new Float2(camPos.x, camPos.y), new Float2(camSpace.x, camSpace.y), new Float2(starLayers[i][j].transform.position.x, starLayers[i][j].transform.position.y)).any)
                 {
                     objsToDestroy.Add(starLayers[i][j]);
                 }
@@ -87,7 +87,7 @@ public class ParrallaxTest : MonoBehaviour
             {
                 if (starLayers[j].Contains(objsToDestroy[i]))
                 {
-                    DetectObstaclesInPosition.ContainsPointReturn returnVal = DetectObstaclesInPosition.ContainsPoint(new float2(camPos.x, camPos.y), new float2(camSpace.x, camSpace.y), new float2(objsToDestroy[i].transform.position.x, objsToDestroy[i].transform.position.y));
+                    ContainsPointReturn returnVal = DetectObstaclesInPosition.ContainsPoint(new Float2(camPos.x, camPos.y), new Float2(camSpace.x, camSpace.y), new Float2(objsToDestroy[i].transform.position.x, objsToDestroy[i].transform.position.y));
                     starLayers[j].Remove(objsToDestroy[i]);
                     Vector2 spawnPos = new Vector2();
                     int randomNum = rnd.Next(0, 2);

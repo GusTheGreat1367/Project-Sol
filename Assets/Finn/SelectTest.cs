@@ -12,8 +12,6 @@ public class SelectTest : MonoBehaviour
     public List<PathFinderAI> selectedObjs = new List<PathFinderAI>();
     public List<GameObject> selectableGameObjs = new List<GameObject>();
     Rect selectionRect = new Rect();
-    Vector2 mousePos = new Vector2();
-    Vector2 mouseWorldPos = new Vector2();
     private Vector2 selectionStartPos = new Vector2();
     public Texture2D selectionTexture;
     public Color selectionColor = new Color(0.8f, 0.8f, 0.9f, 0.25f);
@@ -32,17 +30,18 @@ public class SelectTest : MonoBehaviour
     }
     private void Start()
     {
-        for (int i = 0; i < selectableGameObjs.Count; i++)
-        {
-            PathFinderAI newAI = new PathFinderAI();
+        //for (int i = 0; i < selectableGameObjs.Count; i++)
+        //{
 
-            newAI.obj = selectableGameObjs[i];
-            //newAI.obj.gameObject.AddComponent<ObstacleObj>();
-            newAI.obj.name = "AI " + i;
-            newAI.instanceID = newAI.obj.gameObject.GetInstanceID();
-            selectableObjs.Add(newAI);
+        //    PathFinderAI newAI = new PathFinderAI();
 
-        }
+        //    newAI.obj = selectableGameObjs[i];
+        //    //newAI.obj.gameObject.AddComponent<ObstacleObj>();
+        //    newAI.obj.name = "AI " + i;
+        //    newAI.instanceID = newAI.obj.gameObject.GetInstanceID();
+        //    selectableObjs.Add(newAI);
+
+        //}
         selectionTexture = new Texture2D(1, 1);
         lineRenderer = FindFirstObjectByType(typeof(UILineRenderer)) as UILineRenderer;
     }
@@ -141,10 +140,12 @@ public class SelectTest : MonoBehaviour
                 if (!selectedObjs.Contains(selectableObjs[i]) && selectionRect.Contains(selectableObjs[i].obj.transform.position, true))
                 {
                     selectedObjs.Add(selectableObjs[i]);
+                    selectableObjs[i].selected = true;
                 }
                 else if (selectedObjs.Contains(selectableObjs[i]) && !selectionRect.Contains(selectableObjs[i].obj.transform.position, true))
                 {
                     selectedObjs.Remove(selectableObjs[i]);
+                    selectableObjs[i].selected = false;
                 }
             }
         }
