@@ -1,0 +1,1 @@
+This JSON folder is for the saved space station builds.
