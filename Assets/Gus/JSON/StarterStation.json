@@ -1,0 +1,8 @@
+{
+     "RootPiece": {
+       "Left": "ResourceMiner",
+       "Right": "FoodModule"
+     },
+     "Credits": 0,
+     "People": 50
+}
