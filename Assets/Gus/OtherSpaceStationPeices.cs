@@ -11,8 +11,8 @@ namespace OtherSpaceStationPeices
     {
         int i = 0; 
         public List<Type> pieces = new List<Type>() {Structual_Piece.Structual_piece, ResourceMiner_piece.ResourceMiner_piece, FoodModule.FoodModule};
-        public List<Item> AttPieces = new List<Item>();
-
+        public var AttPieces = new Dictionary<Item, Item>(); 
+        //Ex: AttPieces.Add(Right, (selectedPiece.side == "Right") ? selectedPiece : null); <- valid syntax
 
 
         void Update()
@@ -33,10 +33,14 @@ namespace OtherSpaceStationPeices
             //use button to end build
             if(Input.GetKey(KeyCode.P))
             {
-                //snap the piece to the root piece 
-                // ALSO IN RootSpaceStationPeice.cs possible double unless changed
+                //place the piece
+                // get the side of the root piece that the piece is touching
+                // THIS DOESN'T WORK BECAUSE NOW YOU CAN PLACE THE PIECE WHERE EVER!
                 rootPiece.pieces += 1;
-                AttPieces.Add(SelectedPiece);
+                AttPieces.Add(Right, (selectedPiece.side == "Right") ? selectedPiece : null);
+                AttPieces.Add(Left, (selectedPiece.side == "Left") ? selectedPiece : null);
+                AttPieces.Add(Top, (selectedPiece.side == "Top") ? selectedPiece : null);
+                AttPieces.Add(Bottom, (selectedPiece.side == "Bottom") ? selectedPiece : null);
             }
             if (Input.GetKey(KeyCode.R))
             {
