@@ -1,11 +1,10 @@
+using UnityEngine;
 using System.Collections.Generic;
 using SpaceStation;
 using OtherSpaceStationPeices;
 
-namespace Structual_Piece //This entire namespace works for all of the pieces, just change the Activation()
-//me personally I would make a generic space station part class and then change stats in 
-//that class, such as having a intake materials variable and then having a output materials
-//variable, but thats just how I would do it. You don't need to do it that way as long as it works
+namespace Structual_Piece //The piece is a 90 degree connector - block straight-line and replace with straight-line-90 degree connector
+//Make another piece that is just a strightline connecter.
 {
     public class Structual_piece : MonoBehaviour
     {
