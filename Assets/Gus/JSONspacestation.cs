@@ -60,7 +60,16 @@ namespace JSON_SP
             station.Add("Bottom", OtherSpaceStationPeices.AttPieces.Bottom);
             Root.Add("Root", station);
             //Instead of sides, record coordanites for the connecter
-            
+            // FOR THE COORDINATES FOR SAVING:
+            // Make a string of the coordinates as a variable ex: string pieceXY = "014, 098";
+            // THEN you do a: char delimiter = ',';
+            // and then split it by a comma: string[] coordinates = input.Split(delimiter);
+            // then a simple pieceX = coordinates(0) and pieceY = coordinates(1)
+            // This can be in the decoding area (LoadStation) 
+            // then we just draw the line from the root to the final piece position
+
+
+
             //Then find if the top/bottom/left/right piece has anything attached to it and if so make that a 
             // new dictionary and in the end add the attached piece the that piece's l/r/t/b side
             // then make that the OtherSpaceStationPeices.AttPieces.[side] (a new var like OSSPAP.[side])
