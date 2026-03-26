@@ -9,6 +9,16 @@ namespace FoodModule
 {
     public class FoodModule : MonoBehaviour
     {
+        public int UpCost = 2500;
+        public int level = 1;
+        public var time = new Dictionary<int, int> ();
+        time.Add(1, 5000); // you could easily automate this just by using a for loop
+        time.Add(2, 4500);
+        time.Add(3, 4000);
+        time.Add(4, 3500);
+        time.Add(5, 3000);
+        time.Add(6, 2500);
+        time.Add(7, 2000);
         public string type = "functional";
         int X = 0;
         int Y = 0;
@@ -32,12 +42,25 @@ namespace FoodModule
         void Activation()//on build.cs or RootSpaceStation.cs call Structual_piece.Activation(); to start the function
         {
             //control for the piece
-            if ((SpaceStation.resources["Carbon"] == 100) && (SpaceStation.resources["H2O"] == 100)) // refines O2 && Carbon into food 
-            {                                                                                        // That will help create more people 
-                SpaceStation.resources["Carbon"] -= 50;
-                SpaceStation.resources["H2O"] -= 50;
+            // The level influences the number of resources needed to refine into 50 food
+            if ((SpaceStation.resources["Carbon"] >= 100) && (SpaceStation.resources["H2O"] >= 100)) // refines Carbon and H2O into Food
+            {
+                SpaceStation.resources["Carbon"] -= 100;
+                SpaceStation.resources["H2O"] -= 100;
                 SpaceStation.resources["Food"] += 50;
             }
         }
+        void upgrade() // in space station.cs 
+        {
+            if (time[level] < 7)
+            {
+                if (SpaceStation.credits >= UpCost)
+                {
+                    SpaceStation.credits -= UpCost;
+                    level += 1;
+                    UpCost += 2500;
+                }
+            }
+        }        
     }
 }
