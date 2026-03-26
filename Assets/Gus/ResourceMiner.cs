@@ -1,68 +1,113 @@
 using UnityEngine;
 using System.Collections.Generic;
-using SpaceStation;
+using UnityEngine.UI;
 using OtherSpaceStationPeices;
-using System;
-using System.Threading;
 
-namespace ResourceMiner_piece //This entire namespace works for all of the pieces, just change the Activation()
+namespace RootSpaceStationPeice
 {
-    public class ResourceMiner_piece : MonoBehaviour
+    public class Root //the only reason we'd need this is to link the pieces together
     {
-        public int level = 1;
-        public int UpCost = 2500;
-        public var time = new Dictionary<int, int> ();
-        time.Add(1, 5000); // you could easily automate this just by using a for loop
-        time.Add(2, 4500);
-        time.Add(3, 4000);
-        time.Add(4, 3500);
-        time.Add(5, 3000);
-        time.Add(6, 2500);
-        time.Add(7, 2000);
-        // ect. Decreasing by 500 each time until it reaches 2000 (max level)
+        public int X;
+        public int Y;
+        public int R;
+    }
 
 
-        public string type = "functional";
-        int X = 0;
-        int Y = 0;
-        int R = 0;
+    public class RootSpaceStationPeice : MonoBehaviour
+    {
+        private int pieces = 0;
+        
+        // Added required fields that were missing
+        private int X;
+        private int Y;
+        private int Z;
+        private int R;
+        List<Item>SnappedPieces = new List<Item>();
 
-        void update()
+        private class FadingMessage
         {
-            /* if (X > canvas_max_X || X < canvas_min_X || Y > canvas_max_Y || Y < canvas_min_Y)
+            public string text;
+            public int size;
+            public Rect rect;
+            public float timer;
+        }
+
+        private List<FadingMessage> activeMessages = new List<FadingMessage>();
+
+        void Start()
+        {
+            X = 0;
+            Y = 0;
+            Z = 0;
+            R = 0;
+        }
+
+        void Disp(string msg, int txtsize, int x, int y)//display a message the the screen
+        {
+            
+            // Prevent duplicate message spamming
+            if (activeMessages.Count > 0 && activeMessages[activeMessages.Count - 1].text == msg)
+            {
+                return;
+            }
+
+            activeMessages.Add(new FadingMessage
+            {
+                text = msg,
+                size = txtsize,
+                rect = new Rect(x + 10, y + 10, 500, 100), // Offset slightly and give width
+                timer = 2.5f
+            });
+        }
+
+        void OnGUI()
+        {
+            for (int i = activeMessages.Count - 1; i >= 0; i--)
+            {
+                var msg = activeMessages[i];
+                msg.timer -= Time.deltaTime;
+
+                if (msg.timer <= 0)
+                {
+                    activeMessages.RemoveAt(i);
+                    continue;
+                }
+
+                GUIStyle style = new GUIStyle();
+                style.fontSize = msg.size;
+                // Fade out in the last 1 second
+                float alpha = Mathf.Clamp01(msg.timer);
+                style.normal.textColor = new Color(1, 1, 1, alpha);
+                
+                GUI.Label(msg.rect, msg.text, style);
+            }
+        }
+
+        void Update()
+        {
+            if (X != 0 || Y != 0 || R != 0)
             {
                 X = 0;
                 Y = 0;
+                Z = 0;
             }
-            */
-            if(OtherSpaceStationPeices.SelectedPiece == "ResourceMiner_piece")
+            
+            // Commenting out this check as OtherSpaceStationPeices.SelectedPiece is not accessible staticly
+            // if (OtherSpaceStationPeices.OtherSpaceStationPeices.SelectedPiece /*Is touching root*/)
+            // {
+            //    pieces += 1;
+                //detect where the piece is touching and append it to that area.
+            // }
+
+            if (pieces == 0)
             {
-                X = OtherSpaceStationPeices.SelectedPiece.X;
-                Y = OtherSpaceStationPeices.SelectedPiece.Y;
-                R = OtherSpaceStationPeices.SelectedPiece.R;
+                Disp("Attach a piece to the root piece to get started!", 15, 0, 5);
+            }
+            if (pieces == 64) // to prevent crashing the game and messing up storage later update to a better #
+            {
+                Disp("Error, you cannot have more than 64 pieces on the space station at a time", 20, 0, 0);
+                enabled = false; // Stop the script instead of 'break'
             }
         }
-        void Activation()//on build.cs or RootSpaceStation.cs call Structual_piece.Activation(); to start the function
-        {
-            //control for the piece
-            Thread.Sleep(time[level]); 
-            SpaceStation.resources["Ore"] += 10;
-            SpaceStation.resources["O2"] += 10;
-            SpaceStation.resources["Carbon"] += 100;
-            SpaceStation.resources["H2O"] += 100;
-            SpaceStation.credits += 25;
-        }
-        void upgrade() // in space station.cs 
-        {
-            if (time[level] < 7)
-            {
-                if (SpaceStation.credits >= UpCost)
-                {
-                    SpaceStation.credits -= UpCost;
-                    level += 1;
-                    UpCost += 2500;
-                }
-            }
-        }        
     }
 }
