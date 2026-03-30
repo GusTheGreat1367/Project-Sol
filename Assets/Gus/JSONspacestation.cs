@@ -1,17 +1,19 @@
+/*
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
-using SpaceStation; // SpaceStation.cs
+using Station;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using UnityEngine;
-using OtherSpaceStationPeices;  
+using SpaceStationPeices;
 using RootSpaceStationPeice;
 
 // SAVE/LOAD STATION PROCESS: Build the station -> save (Convert to JSON) -> load (Convert from JSON to station)
 // I might be cooked, I need to find a method for drawing the piece connecter, requiring coordinates and another
 // save method. 
+//A LOT OF ERRORS
 
 namespace JSON_SP
 {
@@ -61,14 +63,14 @@ namespace JSON_SP
             Root.Add("Root", station);
             //Instead of sides, record coordanites for the connecter
             // FOR THE COORDINATES FOR SAVING:
-            // Make a string of the coordinates as a variable ex: string pieceXY = "014, 098";
+            // Make a string of the coordinates as a variable ex: string pieceXY = "014,098";
             // THEN you do a: char delimiter = ',';
             // and then split it by a comma: string[] coordinates = input.Split(delimiter);
             // then a simple pieceX = coordinates(0) and pieceY = coordinates(1)
             // This can be in the decoding area (LoadStation) 
             // then we just draw the line from the root to the final piece position
 
-
+            // save to a station# file
 
             //Then find if the top/bottom/left/right piece has anything attached to it and if so make that a 
             // new dictionary and in the end add the attached piece the that piece's l/r/t/b side
@@ -90,12 +92,19 @@ namespace JSON_SP
                 ]
                 "bottom" = "AnotherPiece"
             ]
-            */
+            
             
         }
-        void LoadStation()
+        void LoadStation(string stationNUM)
         {
+            //Make the elements into a list called APIECE
+            foreach(var a in APIECE)
+            {
+                DrawConnector(APIECE);
+            }
+            
             // read <station_name>.json and turn into station
         }
     }
 }
+*/
