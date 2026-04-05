@@ -1,4 +1,3 @@
-/*
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System;
@@ -9,24 +8,29 @@ using System.Text;
 using UnityEngine;
 using SpaceStationPeices;
 using RootSpaceStationPeice;
+using OtherSpaceStationPieces; // change to actual
 
 // SAVE/LOAD STATION PROCESS: Build the station -> save (Convert to JSON) -> load (Convert from JSON to station)
-// I might be cooked, I need to find a method for drawing the piece connecter, requiring coordinates and another
-// save method. 
-//A LOT OF ERRORS
 
 namespace JSON_SP
 {
     class JSONSpaceStation
     {
-        var Saves = new Dictionary<string, string>();
-        Saves.Add("StarterStation", "StarterStation.json");
-        Saves.Add("Station1", "spacestation1.json"); //Rename "station1" to the actual name of the save file
-        Saves.Add("Station2", "spacestation2.json"); //Rename "station2" to the actual name of the save file
-        Saves.Add("Station3", "spacestation3.json"); //Rename "station3" to the actual name of the save file
-        Saves.Add("Station4", "spacestation4.json"); //Rename "station4" to the actual name of the save file
-        Saves.Add("Station5", "spacestation5.json"); //Rename "station5" to the actual name of the save file
+        var Saves = new Dictionary<string, string>()
+        {
+            {"StarterStation", "StarterStation.json"}, 
+            {"Station1", "spacestation1.json"}, //Rename "station1" to the actual name of the save file
+            {"Station2", "spacestation2.json"}, //Rename "station2" to the actual name of the save file
+            {"Station3", "spacestation3.json"}, //Rename "station3" to the actual name of the save file
+            {"Station4", "spacestation4.json"}, //Rename "station4" to the actual name of the save file
+            {"Station5", "spacestation5.json"} //Rename "station5" to the actual name of the save file
+        };
         // MAX of 5 saved stations
+        var station1 = new Dictionary<string, string>();
+        var station2 = new Dictionary<string, string>();
+        var station3 = new Dictionary<string, string>();
+        var station4 = new Dictionary<string, string>();
+        var station5 = new Dictionary<string, string>();
 
         
         void StarterStation()
@@ -35,7 +39,14 @@ namespace JSON_SP
             var SP = new Dictionary<string, string>();
             SP.Add("Left", "ResourceMiner");
             SP.Add("Right", "FoodModule");
-            
+            SP.Add("up", "Solar Panels");
+            SP.Add("down", "Solar Panels");
+            //change above's left/right to be the coordinates for the left/right areas and up/down to coordinates
+            //Or just do l/r/u/d and in loadstation make them coordinates
+            //station will look like ( the || are solar pannels):
+            //      ||
+            // [RM]:[]:[FM]
+            //      ||
             root.Add("RootPiece", SP);
             root.Add("Credits", 0);
             root.Add("People", 50);
@@ -51,60 +62,45 @@ namespace JSON_SP
             string content = StarterStation;
             File.WriteAllText(fullPath, content);
         }
-        void SaveStation()
+        void SaveStation(string stationNUM) // fix with coordinates 
         {
             var Root = new Dictionary<string, object>();
+            var ST = new Dictionary<object, object>();
+            //ST = OtherSpaceStationPieces.AttPieces; //change to actual name
+            Root.Add("RootPiece", OtherSpaceStationPieces.AttPieces);//this might work and if so, yay! BC if the root is (0,0), the coordinates are relative to it
+            Root.Add("Credits", 0);
+            Root.Add("People", 50);
             // turn station into JSON file and write to <station_name>.json
-            var station = new Dictionary<string, string>();
-            station.Add("Right", OtherSpaceStationPeices.AttPieces.Right);
-            station.Add("Left", OtherSpaceStationPeices.AttPieces.Left);
-            station.Add("Top", OtherSpaceStationPeices.AttPieces.Top);
-            station.Add("Bottom", OtherSpaceStationPeices.AttPieces.Bottom);
-            Root.Add("Root", station);
-            //Instead of sides, record coordanites for the connecter
-            // FOR THE COORDINATES FOR SAVING:
-            // Make a string of the coordinates as a variable ex: string pieceXY = "014,098";
-            // THEN you do a: char delimiter = ',';
-            // and then split it by a comma: string[] coordinates = input.Split(delimiter);
-            // then a simple pieceX = coordinates(0) and pieceY = coordinates(1)
-            // This can be in the decoding area (LoadStation) 
-            // then we just draw the line from the root to the final piece position
+            // save OtherSpaceStationPieces.AttPieces to stationNUM.json in json syntax
 
-            // save to a station# file
-
-            //Then find if the top/bottom/left/right piece has anything attached to it and if so make that a 
-            // new dictionary and in the end add the attached piece the that piece's l/r/t/b side
-            // then make that the OtherSpaceStationPeices.AttPieces.[side] (a new var like OSSPAP.[side])
-            // and add the actual station.add()s to the bottom, after the steps above so you can do 
-            // station.add("Right", OSSPAP.Right);
-            // if OSSAP.Right is null, do a check for it.
-            //final code for the process:
- // station.add("Right", (OSSPAP.Right == null) ? OtherSpaceStationPeices.AttPieces.Right : OSSPAP.Right);
-            
-            /*
-            Example if top is not null and it is a fictional piece named  "Laser piece":
-            "Root" = [
-                "left" = "ResourceMiner",
-                "right" = "FoodModule",
-                "top" = "Laser piece" = [
-                    "left" = "DockingPort",
-                    "right" = "TradingPost",
-                ]
-                "bottom" = "AnotherPiece"
-            ]
-            
-            
+            var options = new JsonSerializerOptions { WriteIndented = true };
+            var Station = JsonSerializer.Serialize(Root, options);
+            string folderPath = @"./Assets/Gus/JSON";
+            string fileName = $"{stationNUM}.json";
+            string fullPath = Path.Combine(folderPath, fileName);        
+            string content = Station;
+            //copy content to stationNUM but the Dictionary for it
+            File.WriteAllText(fullPath, content);
         }
         void LoadStation(string stationNUM)
         {
-            //Make the elements into a list called APIECE
+            foreach(var pie in stationNUM)// stationNUM is a copy of the JSON file ex. spacestation1 is the .json fila and a var
+            { 
+                string pieceXY = OtherSpaceStation.AttPieces[pie];
+                char delimiter = ',';
+                string[] coordinates = pieceXY.Split(delimiter);
+                pieceX = coordinates(0);
+                pieceY = coordinates(1);
+                // save the piece with 
+            }
+            //Make the elements into a dictionary called APIECE with the piece then the coordinates
             foreach(var a in APIECE)
             {
                 DrawConnector(APIECE);
             }
             
             // read <station_name>.json and turn into station
+
         }
     }
 }
-*/
